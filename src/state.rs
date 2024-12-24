@@ -1,4 +1,4 @@
-use poise::serenity_prelude::{ChannelId, GuildId, UserId};
+use poise::serenity_prelude::{GuildChannel, GuildId, UserId};
 use sqlx::{
     types::chrono::{DateTime, Utc},
     PgPool,
@@ -11,12 +11,12 @@ pub struct State {
 }
 
 impl State {
-    /// Adds a message that will be triggered.
-    pub async fn add_message(
+    /// Adds a message that will be triggered by a user
+    /// starting an activity.
+    pub async fn add_triggered_message(
         &self,
+        guild_channel: GuildChannel,
         user_id: UserId,
-        guild_id: GuildId,
-        channel_id: ChannelId,
         activity_name: &str,
         message: &str,
     ) -> anyhow::Result<ActivityMessage> {
@@ -24,10 +24,10 @@ impl State {
 
         let activity_watcher = ActivityWatcher::get_or_create(
             &mut *transaction,
-            guild_id.into(),
+            guild_channel.guild_id.into(),
             user_id.into(),
             activity_name,
-            channel_id.into(),
+            guild_channel.id.into(),
         )
         .await?;
 
@@ -39,18 +39,22 @@ impl State {
         Ok(activity_message)
     }
 
-    pub async fn remove_messages(
+    /// Removes all triggered messages triggered by a particular
+    /// user starting an activity in a channel.
+    ///
+    /// If `activity_name` is specified, will only remove messages
+    /// for the particular activity.
+    pub async fn remove_all_triggered_messages(
         &self,
+        guild_channel: GuildChannel,
         user_id: UserId,
-        guild_id: GuildId,
-        channel_id: ChannelId,
         activity_name: Option<&str>,
     ) -> anyhow::Result<Vec<ActivityMessage>> {
-        let mut activity_watchers = ActivityWatcher::query_by_channel(
+        let mut activity_watchers = ActivityWatcher::query_by_guild_user_channel(
             &self.pool,
-            guild_id.into(),
+            guild_channel.guild_id.into(),
             user_id.into(),
-            channel_id.into(),
+            guild_channel.id.into(),
         )
         .await?;
 
@@ -73,44 +77,44 @@ impl State {
         Ok(removed_messages)
     }
 
-    pub async fn remove_message(
+    /// Attempts to remove a triggered message, and returns if the message
+    /// was removed.
+    pub async fn remove_triggered_message(
         &self,
+        guild_channel: GuildChannel,
         user_id: UserId,
-        guild_id: GuildId,
-        channel_id: ChannelId,
         message_id: Id,
     ) -> anyhow::Result<bool> {
         ActivityMessage::delete_by_id_if_allowed(
             &self.pool,
             message_id,
             user_id.into(),
-            guild_id.into(),
-            channel_id.into(),
+            guild_channel.id.into(),
         )
         .await
         .map(|row| row.is_some())
         .map_err(anyhow::Error::new)
     }
 
+    /// Gets all watchers and messages in a particular channel associated
+    /// with a user.
     pub async fn get_watchers_and_messages(
         &self,
+        guild_channel: GuildChannel,
         user_id: UserId,
-        guild_id: GuildId,
-        channel_id: ChannelId,
     ) -> anyhow::Result<(Vec<ActivityWatcher>, Vec<ActivityMessage>)> {
-        let activity_watchers = ActivityWatcher::query_by_channel(
+        let activity_watchers = ActivityWatcher::query_by_guild_user_channel(
             &self.pool,
-            guild_id.into(),
+            guild_channel.guild_id.into(),
             user_id.into(),
-            channel_id.into(),
+            guild_channel.id.into(),
         )
         .await?;
 
-        let activity_messages = ActivityMessage::query(
+        let activity_messages = ActivityMessage::query_by_user_channel(
             &self.pool,
-            guild_id.into(),
             user_id.into(),
-            channel_id.into(),
+            guild_channel.id.into(),
         )
         .await?;
 
@@ -124,13 +128,18 @@ impl State {
         guild_id: GuildId,
         activity_name: &str,
     ) -> anyhow::Result<Vec<ActivityWatcher>> {
-        ActivityWatcher::query(&self.pool, guild_id.into(), user_id.into(), activity_name)
-            .await
-            .map_err(anyhow::Error::new)
+        ActivityWatcher::query_by_guild_user_activity(
+            &self.pool,
+            guild_id.into(),
+            user_id.into(),
+            activity_name,
+        )
+        .await
+        .map_err(anyhow::Error::new)
     }
 
     /// Gets a random message to send for the watcher
-    pub async fn get_random_message_for_watcher(
+    pub async fn query_random_message_for_watcher(
         &self,
         activity_watcher: &ActivityWatcher,
     ) -> anyhow::Result<Option<ActivityMessage>> {
