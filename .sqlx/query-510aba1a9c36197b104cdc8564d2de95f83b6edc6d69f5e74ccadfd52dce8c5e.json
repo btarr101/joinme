@@ -1,0 +1,55 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            WITH inserted AS (\n                INSERT INTO activity_watcher (guild_id, user_id, activity_name, channel_id, last_triggered)\n                VALUES ($1, $2, $3, $4, NULL)\n                ON CONFLICT DO NOTHING\n                RETURNING *\n            )\n            SELECT * FROM inserted\n            UNION ALL\n            SELECT * FROM activity_watcher\n            WHERE guild_id=$1 AND user_id=$2 AND activity_name=$3 AND channel_id=$4\n            LIMIT 1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "guild_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "user_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 3,
+        "name": "activity_name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "channel_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 5,
+        "name": "last_triggered",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8",
+        "Varchar",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "510aba1a9c36197b104cdc8564d2de95f83b6edc6d69f5e74ccadfd52dce8c5e"
+}

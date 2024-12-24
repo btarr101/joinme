@@ -1,0 +1,36 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            DELETE\n            FROM activity_message\n            USING activity_watcher\n            WHERE activity_message.id = $1\n                AND activity_watcher.user_id = $2\n                AND activity_watcher.channel_id = $3\n            RETURNING activity_message.*\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "activity_watcher",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "message",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "04aba67253e49c4ef10b434d43d38d8fddb14ba96169f835493aea2a35c02968"
+}

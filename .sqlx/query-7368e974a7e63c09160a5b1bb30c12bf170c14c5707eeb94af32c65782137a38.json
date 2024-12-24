@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT am.*\n            FROM activity_message am\n            JOIN activity_watcher aw ON am.activity_watcher = aw.id\n            WHERE aw.user_id = $1 AND aw.channel_id = $2\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "activity_watcher",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 2,
+        "name": "message",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "7368e974a7e63c09160a5b1bb30c12bf170c14c5707eeb94af32c65782137a38"
+}

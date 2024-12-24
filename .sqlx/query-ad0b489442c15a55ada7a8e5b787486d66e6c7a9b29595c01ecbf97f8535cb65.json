@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE activity_watcher\n            SET last_triggered = NOW()\n            WHERE id = $1 AND (last_triggered IS NULL OR last_triggered < NOW())\n            RETURNING last_triggered::TIMESTAMPTZ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "last_triggered",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "ad0b489442c15a55ada7a8e5b787486d66e6c7a9b29595c01ecbf97f8535cb65"
+}
