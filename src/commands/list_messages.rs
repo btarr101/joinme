@@ -1,13 +1,17 @@
 use anyhow::Context as _;
 use poise::{serenity_prelude::CreateEmbed, CreateReply};
 
-use crate::{Context, Error};
+use crate::{
+    commands::autocompletes::activities_with_message_autocomplete::activities_with_message_autocomplete,
+    Context, Error,
+};
 
 /// Lists all of your activity messages that will be sent in this channel.
 #[poise::command(slash_command, rename = "listactivitymessages")]
 pub async fn list_messages(
     context: Context<'_>,
     #[description = "The exact name of the activity (what shows up in your status)"]
+    #[autocomplete = "activities_with_message_autocomplete"]
     activity: Option<String>,
 ) -> Result<(), Error> {
     let guild_channel = context

@@ -4,7 +4,10 @@ use poise::{
     CreateReply,
 };
 
-use crate::{Context, Error};
+use crate::{
+    commands::autocompletes::recorded_activity_autocomplete::recorded_activity_autocomplete,
+    Context, Error,
+};
 
 /// Adds a trigger to send a message whenever you start an activity (uses your most recent message).
 ///
@@ -14,6 +17,7 @@ use crate::{Context, Error};
 pub async fn add_message(
     context: Context<'_>,
     #[description = "The exact name of the activity (what shows up in your status)"]
+    #[autocomplete = "recorded_activity_autocomplete"]
     activity: String,
 ) -> Result<(), Error> {
     let guild_channel = context
@@ -29,7 +33,7 @@ pub async fn add_message(
     let previous_discord_message = previous_discord_messages
         .into_iter()
         .find(|message| message.author.id == context.author().id && !message.content.is_empty())
-        .context("Unable to find message in recent history to use")?;
+        .context("😕 Unable to find message in recent history to use.")?;
 
     let message = context
         .data()

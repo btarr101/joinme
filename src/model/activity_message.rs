@@ -3,7 +3,7 @@ use sqlx::{Executor, Postgres};
 use super::{DiscordId, Id};
 
 /// Table to query for getting the messages to send.
-#[derive(sqlx::FromRow, serde::Serialize, Debug)]
+#[derive(sqlx::FromRow, Debug)]
 pub struct ActivityMessage {
     pub id: Id,
     pub activity_watcher: Id,

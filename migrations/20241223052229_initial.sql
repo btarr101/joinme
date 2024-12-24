@@ -13,3 +13,9 @@ CREATE TABLE activity_message (
     activity_watcher INTEGER NOT NULL REFERENCES activity_watcher(id) ON DELETE CASCADE,
     message TEXT NOT NULL
 );
+
+CREATE TABLE recorded_activity (
+    user_id BIGINT NOT NULL,
+    activity_name VARCHAR(64) NOT NULL,
+    UNIQUE (user_id, activity_name)
+);

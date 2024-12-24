@@ -1,10 +1,13 @@
-use poise::serenity_prelude::{GuildChannel, GuildId, UserId};
+use poise::serenity_prelude::{Activity, GuildChannel, GuildId, UserId};
 use sqlx::{
     types::chrono::{DateTime, Utc},
     PgPool,
 };
 
-use crate::model::{activity_message::ActivityMessage, activity_watcher::ActivityWatcher, Id};
+use crate::model::{
+    activity_message::ActivityMessage, activity_watcher::ActivityWatcher,
+    recorded_activity::RecordedActivity, Id,
+};
 
 pub struct State {
     pub pool: PgPool,
@@ -156,6 +159,27 @@ impl State {
     ) -> anyhow::Result<DateTime<Utc>> {
         activity_watcher
             .update_last_triggered(&self.pool)
+            .await
+            .map_err(anyhow::Error::new)
+    }
+
+    /// Records an activity for a user
+    pub async fn record_activity(
+        &self,
+        user_id: UserId,
+        activity: &Activity,
+    ) -> anyhow::Result<RecordedActivity> {
+        RecordedActivity::get_or_create(&self.pool, user_id.into(), &activity.name)
+            .await
+            .map_err(anyhow::Error::new)
+    }
+
+    /// Queries all recorded activites for a user, limited to 25.
+    pub async fn get_recorded_activites(
+        &self,
+        user_id: UserId,
+    ) -> anyhow::Result<Vec<RecordedActivity>> {
+        RecordedActivity::query_by_user(&self.pool, user_id.into())
             .await
             .map_err(anyhow::Error::new)
     }

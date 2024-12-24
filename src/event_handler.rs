@@ -1,8 +1,7 @@
 use poise::{
     serenity_prelude,
     serenity_prelude::{
-        Activity, ChannelId, CreateAllowedMentions, CreateMessage, FullEvent, Presence,
-        PresenceUser,
+        ChannelId, CreateAllowedMentions, CreateMessage, FullEvent, Presence, PresenceUser,
     },
     FrameworkContext,
 };
@@ -27,23 +26,35 @@ pub async fn event_handler(
                 },
             ..
         } => {
-            for Activity {
-                name: activity_name,
-                created_at,
-                ..
-            } in activities
+            for activity in activities
+                .iter()
+                .filter(|activity| !activity.name.is_empty())
             {
-                tracing::info!(
-                    "Activity update for user {} & guild {}: \"{}\" created @ {}",
-                    user_id,
-                    guild_id,
-                    activity_name,
-                    DateTime::<Utc>::from_timestamp_millis(*created_at as i64)
-                        .expect("no out of range")
-                );
+                let activity_timestamp =
+                    DateTime::<Utc>::from_timestamp_millis(activity.created_at as i64)
+                        .expect("no out of range");
+
+                if let Err(err) = state.record_activity(*user_id, activity).await {
+                    tracing::warn!(
+                        "Failed to record activity for user {} & guild {}: \"{}\" created @ {}: {}",
+                        user_id,
+                        guild_id,
+                        activity.name,
+                        activity_timestamp,
+                        err
+                    )
+                } else {
+                    tracing::info!(
+                        "Recorded activity update for user {} & guild {}: \"{}\" created @ {}",
+                        user_id,
+                        guild_id,
+                        activity.name,
+                        activity_timestamp
+                    );
+                }
 
                 let activity_watchers = state
-                    .get_watchers(*user_id, *guild_id, activity_name)
+                    .get_watchers(*user_id, *guild_id, &activity.name)
                     .await?;
                 for mut activity_watcher in
                     activity_watchers.into_iter().filter(|activity_watcher| {
@@ -51,7 +62,7 @@ pub async fn event_handler(
                             .last_triggered
                             .map(|datetime| datetime.timestamp_millis() as u64)
                             .unwrap_or(0)
-                            < *created_at
+                            < activity.created_at
                     })
                 {
                     if let Some(activity_message) = state

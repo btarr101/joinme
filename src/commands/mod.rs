@@ -3,6 +3,7 @@ use poise::structs::Command;
 use crate::{state::State, Error};
 
 pub mod add_message;
+pub mod autocompletes;
 pub mod list_messages;
 pub mod remove_message;
 pub mod remove_messages;

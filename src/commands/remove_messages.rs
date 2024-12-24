@@ -1,7 +1,10 @@
 use anyhow::Context as _;
 use poise::CreateReply;
 
-use crate::{Context, Error};
+use crate::{
+    commands::autocompletes::activities_with_message_autocomplete::activities_with_message_autocomplete,
+    Context, Error,
+};
 
 /// Removes all messages from this channel.
 ///
@@ -11,6 +14,7 @@ use crate::{Context, Error};
 pub async fn remove_messages(
     context: Context<'_>,
     #[description = "The exact name of the activity (removes all message triggers if not specified)"]
+    #[autocomplete = "activities_with_message_autocomplete"]
     activity: Option<String>,
 ) -> Result<(), Error> {
     let guild_channel = context

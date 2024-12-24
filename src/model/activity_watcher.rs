@@ -7,7 +7,7 @@ use super::{activity_message::ActivityMessage, DiscordId, Id};
 
 /// Table to query for checking if there are any messages
 /// that should trigger.
-#[derive(sqlx::FromRow, serde::Serialize, Debug)]
+#[derive(sqlx::FromRow, Debug)]
 pub struct ActivityWatcher {
     pub id: Id,
     pub guild_id: DiscordId,
