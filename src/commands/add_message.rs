@@ -34,7 +34,7 @@ pub async fn add_message(
     let message = context
         .data()
         .add_triggered_message(
-            guild_channel,
+            guild_channel.clone(),
             user_id,
             &activity,
             &previous_discord_message.content,
@@ -55,5 +55,15 @@ pub async fn add_message(
                 .embed(embed),
         )
         .await?;
+
+    tracing::info!(
+        "User {} added message {} for \"{}\" in guild {}, channel {}",
+        user_id,
+        message.id,
+        activity,
+        guild_channel.guild_id,
+        guild_channel.id,
+    );
+
     Ok(())
 }

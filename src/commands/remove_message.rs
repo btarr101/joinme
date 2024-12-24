@@ -17,11 +17,19 @@ pub async fn remove_message(
 
     let deleted = context
         .data()
-        .remove_triggered_message(guild_channel, user_id, message_id)
+        .remove_triggered_message(guild_channel.clone(), user_id, message_id)
         .await?;
 
     context
         .send(CreateReply::default().content(if deleted {
+            tracing::info!(
+                "User {} removed message {} in guild {}, channel {}",
+                user_id,
+                message_id,
+                guild_channel.guild_id,
+                guild_channel.id,
+            );
+
             "❌ Deleted message!"
         } else {
             "😕 Could not delete message."

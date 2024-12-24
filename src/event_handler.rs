@@ -6,6 +6,7 @@ use poise::{
     },
     FrameworkContext,
 };
+use sqlx::types::chrono::{DateTime, Utc};
 
 use crate::{state::State, Error};
 
@@ -32,6 +33,15 @@ pub async fn event_handler(
                 ..
             } in activities
             {
+                tracing::info!(
+                    "Activity update for user {} & guild {}: \"{}\" created @ {}",
+                    user_id,
+                    guild_id,
+                    activity_name,
+                    DateTime::<Utc>::from_timestamp_millis(*created_at as i64)
+                        .expect("no out of range")
+                );
+
                 let activity_watchers = state
                     .get_watchers(*user_id, *guild_id, activity_name)
                     .await?;
@@ -60,17 +70,18 @@ pub async fn event_handler(
                         state
                             .update_last_triggered_for_watcher(&mut activity_watcher)
                             .await?;
+
                         tracing::info!(
-                            "Sent message @ {}: {:?}",
+                            "Sent message @ {}: {}",
                             activity_watcher.last_triggered.expect("trigger"),
-                            activity_message
+                            activity_message.message
                         );
                     }
                 }
             }
         }
         event => {
-            tracing::trace!("Skipped event: {:?}", event);
+            tracing::debug!("Skipped event: {:?}", event);
         }
     }
     Ok(())
