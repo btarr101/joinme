@@ -30,9 +30,14 @@ pub async fn event_handler(
                 .iter()
                 .filter(|activity| !activity.name.is_empty())
             {
-                let activity_timestamp =
-                    DateTime::<Utc>::from_timestamp_millis(activity.created_at as i64)
-                        .expect("no out of range");
+                let activity_timestamp = DateTime::<Utc>::from_timestamp_millis(
+                    activity
+                        .timestamps
+                        .clone()
+                        .map(|timestamps| timestamps.start.unwrap_or(0))
+                        .unwrap_or(0) as i64,
+                )
+                .expect("no out of range");
 
                 if let Err(err) = state.record_activity(*user_id, activity).await {
                     tracing::warn!(
@@ -58,11 +63,12 @@ pub async fn event_handler(
                     .await?;
                 for mut activity_watcher in
                     activity_watchers.into_iter().filter(|activity_watcher| {
-                        activity_watcher
+                        let last_triggered = activity_watcher
                             .last_triggered
                             .map(|datetime| datetime.timestamp_millis() as u64)
-                            .unwrap_or(0)
-                            < activity.created_at
+                            .unwrap_or(0);
+
+                        last_triggered < activity_timestamp.timestamp_millis() as u64
                     })
                 {
                     if let Some(activity_message) = state
