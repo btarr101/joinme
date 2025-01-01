@@ -1,13 +1,18 @@
 use anyhow::Context as _;
 use poise::{serenity_prelude::CreateAllowedMentions, CreateReply};
 
-use crate::{model::Id, Context, Error};
+use crate::{
+    commands::autocompletes::channel_message_ids_autocomplete::channel_message_ids_autocomplete,
+    model::Id, Context, Error,
+};
 
 /// Previews a message given its id. Must be in the channel the message triggers in.
 #[poise::command(slash_command, rename = "previewactivitymessage")]
 pub async fn preview_message(
     context: Context<'_>,
-    #[description = "The Id of the message to preview"] message_id: Id,
+    #[description = "The Id of the message to preview"]
+    #[autocomplete = "channel_message_ids_autocomplete"]
+    message_id: Id,
 ) -> Result<(), Error> {
     let guild_channel = context
         .guild_channel()

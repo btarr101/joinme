@@ -32,5 +32,8 @@ async fn activities_with_message_autocomplete_with_errors(
         .get_watchers_and_messages(guild_channel, user_id)
         .await?;
 
-    Ok(watchers.into_iter().map(|watcher| watcher.activity_name))
+    Ok(watchers
+        .into_iter()
+        .take(25)
+        .map(|watcher| watcher.activity_name))
 }

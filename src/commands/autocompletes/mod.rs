@@ -1,2 +1,3 @@
 pub mod activities_with_message_autocomplete;
+pub mod channel_message_ids_autocomplete;
 pub mod recorded_activity_autocomplete;
