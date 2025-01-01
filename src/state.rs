@@ -99,6 +99,23 @@ impl State {
         .map_err(anyhow::Error::new)
     }
 
+    /// Gets a triggered message if a user is allowed to access it in a particular channel.
+    pub async fn get_triggered_message(
+        &self,
+        guild_channel: GuildChannel,
+        user_id: UserId,
+        message_id: Id,
+    ) -> anyhow::Result<Option<ActivityMessage>> {
+        ActivityMessage::get_if_allowed(
+            &self.pool,
+            message_id,
+            user_id.into(),
+            guild_channel.id.into(),
+        )
+        .await
+        .map_err(anyhow::Error::new)
+    }
+
     /// Gets all watchers and messages in a particular channel associated
     /// with a user.
     pub async fn get_watchers_and_messages(

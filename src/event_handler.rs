@@ -1,7 +1,6 @@
 use poise::{
-    serenity_prelude,
     serenity_prelude::{
-        ChannelId, CreateAllowedMentions, CreateMessage, FullEvent, Presence, PresenceUser,
+        self, ChannelId, CreateAllowedMentions, CreateMessage, FullEvent, Presence, PresenceUser,
     },
     FrameworkContext,
 };
@@ -41,7 +40,7 @@ pub async fn event_handler(
 
                 if let Err(err) = state.record_activity(*user_id, activity).await {
                     tracing::warn!(
-                        "Failed to record activity for user {} & guild {}: \"{}\" created @ {}: {}",
+                        "Failed to record activity for user {} & guild {}: \"{}\" started @ {}: {}",
                         user_id,
                         guild_id,
                         activity.name,
@@ -50,11 +49,12 @@ pub async fn event_handler(
                     )
                 } else {
                     tracing::info!(
-                        "Recorded activity update for user {} & guild {}: \"{}\" created @ {}",
+                        "Recorded activity update for user {} & guild {}: \"{}\" started @ {}: {:?}",
                         user_id,
                         guild_id,
                         activity.name,
-                        activity_timestamp
+                        activity_timestamp,
+                        activity
                     );
                 }
 

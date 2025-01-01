@@ -35,14 +35,23 @@ pub async fn add_message(
         .find(|message| message.author.id == context.author().id && !message.content.is_empty())
         .context("😕 Unable to find message in recent history to use.")?;
 
+    let mut content = previous_discord_message.content;
+
+    let attachment_urls = previous_discord_message
+        .attachments
+        .iter()
+        .map(|attachment| attachment.proxy_url.clone())
+        .collect::<Vec<_>>();
+    if !attachment_urls.is_empty() {
+        content.push('\n');
+        for url in attachment_urls {
+            content.push_str(&format!("\n{}", &url));
+        }
+    }
+
     let message = context
         .data()
-        .add_triggered_message(
-            guild_channel.clone(),
-            user_id,
-            &activity,
-            &previous_discord_message.content,
-        )
+        .add_triggered_message(guild_channel.clone(), user_id, &activity, &content)
         .await?;
 
     let embed = CreateEmbed::default()

@@ -27,6 +27,32 @@ impl ActivityMessage {
         .await
     }
 
+    /// Gets a message if allowed via the perspective of a user accessing it
+    /// from a particular channel.
+    pub async fn get_if_allowed<'a, E: Executor<'a, Database = Postgres>>(
+        executor: E,
+        id: Id,
+        user_id: DiscordId,
+        channel_id: DiscordId,
+    ) -> Result<Option<Self>, sqlx::Error> {
+        sqlx::query_as!(
+            ActivityMessage,
+            "
+            SELECT am.*
+            FROM activity_message am
+            JOIN activity_watcher aw ON am.activity_watcher = aw.id
+            WHERE am.id = $1
+                AND aw.user_id = $2
+                AND aw.channel_id = $3
+            ",
+            id,
+            user_id,
+            channel_id
+        )
+        .fetch_optional(executor)
+        .await
+    }
+
     /// Queries a random message by a particular watcher.
     pub async fn query_randomly_by_activity_watcher<'a, E: Executor<'a, Database = Postgres>>(
         executor: E,
