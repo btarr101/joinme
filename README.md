@@ -1,10 +1,36 @@
-# Poise Hello World Bot with Shuttle
+# Joinme
 
-In this example we will deploy a Poise/Serenity bot with Shuttle that responds to the `/hello` command with `world!`. To run this bot we need a valid Discord Token. To get started log in to the [Discord developer portal](https://discord.com/developers/applications).
+Discord bot to send alert messages when you start an activity.
+
+# Setup
+
+## Shuttle
+
+Shuttle is used for deploying and running locally. Thus to run this application you must first have the shuttle CLI installed: https://docs.shuttle.dev/getting-started/installation
+
+You will also need Docker: https://www.docker.com/products/docker-desktop/
+
+Then simply
+
+```
+shuttle run
+```
+
+And a postgres image will be pulled locally and then spun up to act as a databse.
+
+## DB
+
+This application uses sqlx to compile time check database queries. This means it needs an active connection for compile time checks when editing SQL queries. To do so you will need to copy the `DATABASE_URL` of the postgres docker image into a `.env` file similar to `.env.example`.
+
+For a further reference on sqlx, visit https://github.com/launchbadge/sqlx
+
+## Bot client
+
+To get started log in to the [Discord developer portal](https://discord.com/developers/applications).
 
 1. Click the New Application button, name your application and click Create.
 2. Navigate to the Bot tab in the lefthand menu, and add a new bot.
-3. On the bot page click the Reset Token button to reveal your token. Put this token in your `Secrets.toml`. It's very important that you don't reveal your token to anyone, as it can be abused. Create a `.gitignore` file to omit your `Secrets.toml` from version control.
+3. On the bot page click the Reset Token button to reveal your token. Put this token in your `Secrets.toml`. It's very important that you don't reveal your token to anyone, as it can be abused.
 4. For the sake of this example, you also need to scroll down on the bot page to the Message Content Intent section and enable that option.
 
 To add the bot to a server we need to create an invite link.
