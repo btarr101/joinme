@@ -32,6 +32,11 @@
         "ordinal": 5,
         "name": "last_triggered",
         "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 6,
+        "name": "silenced_until",
+        "type_info": "Timestamptz"
       }
     ],
     "parameters": {
@@ -43,6 +48,7 @@
       ]
     },
     "nullable": [
+      null,
       null,
       null,
       null,

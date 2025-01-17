@@ -15,6 +15,7 @@ pub struct ActivityWatcher {
     pub activity_name: String,
     pub channel_id: DiscordId,
     pub last_triggered: Option<DateTime<Utc>>,
+    pub silenced_until: Option<DateTime<Utc>>,
 }
 
 impl ActivityWatcher {
@@ -114,7 +115,8 @@ impl ActivityWatcher {
             UPDATE activity_watcher
             SET last_triggered = NOW()
             WHERE id = $1 AND (last_triggered IS NULL OR last_triggered < NOW())
-            RETURNING last_triggered::TIMESTAMPTZ",
+            RETURNING last_triggered::TIMESTAMPTZ
+            ",
             self.id
         )
         .fetch_one(executor)
@@ -139,5 +141,34 @@ impl ActivityWatcher {
         .fetch_one(executor)
         .await
         .map(|_| ())
+    }
+
+    /// Set the silenced state of the activity watcher.
+    pub async fn set_silenced_until<'a, E: Executor<'a, Database = Postgres>>(
+        &mut self,
+        silenced_until: Option<DateTime<Utc>>,
+        executor: E,
+    ) -> Result<(), sqlx::Error> {
+        let new_silenced_until = sqlx::query_scalar!(
+            "
+            UPDATE activity_watcher
+            SET silenced_until = $1
+            WHERE id = $2
+            RETURNING silenced_until
+            ",
+            silenced_until,
+            self.id
+        )
+        .fetch_one(executor)
+        .await?;
+
+        self.silenced_until = new_silenced_until;
+
+        Ok(())
+    }
+
+    /// Check if the activity watcher is currently considered silenced.
+    pub fn is_silenced(&self, now: DateTime<Utc>) -> bool {
+        self.silenced_until.unwrap_or(DateTime::<Utc>::MIN_UTC) >= now
     }
 }

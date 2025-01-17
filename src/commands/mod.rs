@@ -8,6 +8,8 @@ pub mod list_messages;
 pub mod preview_message;
 pub mod remove_message;
 pub mod remove_messages;
+pub mod silence;
+pub mod unsilence;
 
 pub fn get_commands() -> Vec<Command<State, Error>> {
     vec![
@@ -16,5 +18,7 @@ pub fn get_commands() -> Vec<Command<State, Error>> {
         preview_message::preview_message(),
         remove_messages::remove_messages(),
         remove_message::remove_message(),
+        silence::silence(),
+        unsilence::unsilence(),
     ]
 }

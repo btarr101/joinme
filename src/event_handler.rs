@@ -71,7 +71,15 @@ pub async fn event_handler(
                         last_triggered < activity_timestamp.timestamp_millis() as u64
                     })
                 {
-                    if let Some(activity_message) = state
+                    let now = Utc::now();
+                    if activity_watcher.is_silenced(now) {
+                        tracing::info!(
+                            "Watcher for activity '{}' @ {} would of triggered, but is silenced until {:?}",
+                            activity_watcher.activity_name,
+                            activity_watcher.last_triggered.expect("trigger"),
+                            activity_watcher.silenced_until
+                        );
+                    } else if let Some(activity_message) = state
                         .query_random_message_for_watcher(&activity_watcher)
                         .await?
                     {

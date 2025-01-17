@@ -200,4 +200,27 @@ impl State {
             .await
             .map_err(anyhow::Error::new)
     }
+
+    /// Silences a watcher until a particular time.
+    pub async fn silence_watcher_until(
+        &self,
+        activity_watcher: &mut ActivityWatcher,
+        until: DateTime<Utc>,
+    ) -> anyhow::Result<()> {
+        activity_watcher
+            .set_silenced_until(Some(until), &self.pool)
+            .await
+            .map_err(anyhow::Error::new)
+    }
+
+    /// Unsilences a watcher.
+    pub async fn unsilence_watcher(
+        &self,
+        activity_watcher: &mut ActivityWatcher,
+    ) -> anyhow::Result<()> {
+        activity_watcher
+            .set_silenced_until(None, &self.pool)
+            .await
+            .map_err(anyhow::Error::new)
+    }
 }
