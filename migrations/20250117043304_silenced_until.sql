@@ -1,0 +1,2 @@
+ALTER TABLE activity_watcher
+ADD COLUMN silenced_until TIMESTAMPTZ DEFAULT NULL;
