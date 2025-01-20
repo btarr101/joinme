@@ -24,7 +24,7 @@ pub async fn add_message(
         .guild_channel()
         .await
         .context("Command must be ran from within a guild")?;
-    let user_id = context.author().id;
+    let user = context.author();
 
     let previous_discord_messages = guild_channel
         .messages(&context.http(), GetMessages::default())
@@ -51,7 +51,7 @@ pub async fn add_message(
 
     let message = context
         .data()
-        .add_triggered_message(guild_channel.clone(), user_id, &activity, &content)
+        .add_triggered_message(guild_channel.clone(), user.id, &activity, &content)
         .await?;
 
     let embed = CreateEmbed::default()
@@ -70,12 +70,13 @@ pub async fn add_message(
         .await?;
 
     tracing::info!(
-        "User {} added message {} for \"{}\" in guild {}, channel {}",
-        user_id,
-        message.id,
+        user = %user.id,
+        username = %user.name,
+        guild = %guild_channel.guild_id,
+        channel = %guild_channel.id,
         activity,
-        guild_channel.guild_id,
-        guild_channel.id,
+        "User added message: {}",
+        content
     );
 
     Ok(())

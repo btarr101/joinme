@@ -21,24 +21,24 @@ pub async fn remove_messages(
         .guild_channel()
         .await
         .context("Command must be ran from within a guild")?;
-    let user_id = context.author().id;
+    let user = context.author();
 
     let removed_messages = context
         .data()
-        .remove_all_triggered_messages(guild_channel.clone(), user_id, activity.as_deref())
+        .remove_all_triggered_messages(guild_channel.clone(), user.id, activity.as_deref())
         .await?;
 
     context
         .send(
             CreateReply::default().content(if !removed_messages.is_empty() {
                 let removed_messages_len = removed_messages.len();
-
                 tracing::info!(
-                    "User {} removed {} messages in guild {}, channel {}",
-                    user_id,
-                    removed_messages_len,
-                    guild_channel.guild_id,
-                    guild_channel.id,
+                    user = %user.id,
+                    username = %user.name,
+                    guild = %guild_channel.guild_id,
+                    channel = %guild_channel.id,
+                    "User removed {} messages",
+                    removed_messages_len
                 );
 
                 format!("❌ Removed {} messages!", removed_messages_len)

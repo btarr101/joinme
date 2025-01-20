@@ -1,5 +1,6 @@
 /target
 .shuttle*
 Secrets*.toml
+!Secrets.dev.example.toml
 .DS_Store
 .env

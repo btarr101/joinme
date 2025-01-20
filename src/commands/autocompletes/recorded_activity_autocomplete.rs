@@ -5,13 +5,18 @@ pub async fn recorded_activity_autocomplete(
     context: Context<'_>,
     _partial: &str,
 ) -> impl Iterator<Item = String> {
-    let user_id = context.author().id;
+    let user = context.author();
     context
         .data()
-        .get_recorded_activites(user_id)
+        .get_recorded_activites(user.id)
         .await
         .unwrap_or_else(|err| {
-            tracing::error!("Failed to autocomplete for user {}: {}", user_id, err);
+            tracing::error!(
+                user = %user.id,
+                username = %user.name,
+                error = %err,
+                "Failed to autocomplete",
+            );
             vec![]
         })
         .into_iter()
