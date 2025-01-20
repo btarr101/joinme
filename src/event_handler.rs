@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use poise::{
     serenity_prelude::{
         self, ChannelId, CreateAllowedMentions, CreateMessage, FullEvent, Presence,
@@ -101,13 +103,20 @@ pub async fn event_handler(
                             .update_last_triggered_for_watcher(&mut activity_watcher)
                             .await?;
 
+                        // We silence the watcher for 5 minutes, since sometimes there are blips where the activity
+                        // can start twice.
+                        let silence_until = Utc::now() + Duration::new(60 * 5, 0);
+                        state
+                            .silence_watcher_until(&mut activity_watcher, silence_until)
+                            .await?;
+
                         tracing::info!(
                             user = %user.id,
                             username = ?user.name,
                             guild = %guild_id,
                             activity = activity.name,
                             activity_timestamp = %activity_timestamp,
-                            "Watcher {} sent message {} @ {}: {}!",
+                            "Watcher {} sent message {} @ {}: {}! It is now silenced for 5 minutes.",
                             activity_watcher.id,
                             activity_message.id,
                             activity_watcher.last_triggered.expect("trigger"),
