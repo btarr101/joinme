@@ -4,16 +4,17 @@ use crate::Context;
 
 /// Autocompletes the message id.
 pub async fn channel_message_ids_autocomplete(context: Context<'_>, partial: &str) -> Vec<String> {
-    let user_id = context.author().id;
+    let user = context.author();
 
     channel_message_ids_autocomplete_with_errors(context, partial)
         .await
         .map(|iter| iter.collect::<Vec<_>>())
         .unwrap_or_else(|err| {
             tracing::error!(
-                "Failed to autocomplete mesage ids for user {}: {}",
-                user_id,
-                err
+                user = %user.id,
+                username = %user.name,
+                error = %err,
+                "Failed to autocomplete",
             );
             vec![]
         })

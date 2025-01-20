@@ -31,7 +31,7 @@ pub async fn activities_with_message_autocomplete_base(
     context: Context<'_>,
     silenced: Option<bool>,
 ) -> Vec<String> {
-    let user_id = context.author().id;
+    let user = context.author();
 
     activities_with_message_autocomplete_with_errors(context)
         .await
@@ -45,7 +45,12 @@ pub async fn activities_with_message_autocomplete_base(
             .collect::<Vec<_>>()
         })
         .unwrap_or_else(|err| {
-            tracing::error!("Failed to autocomplete for user {}: {}", user_id, err);
+            tracing::error!(
+                user = %user.id,
+                username = %user.name,
+                error = %err,
+                "Failed to autocomplete",
+            );
             vec![]
         })
 }

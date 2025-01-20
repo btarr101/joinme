@@ -18,21 +18,22 @@ pub async fn remove_message(
         .guild_channel()
         .await
         .context("Command must be ran from within a guild")?;
-    let user_id = context.author().id;
+    let user = context.author();
 
     let deleted = context
         .data()
-        .remove_triggered_message(guild_channel.clone(), user_id, message_id)
+        .remove_triggered_message(guild_channel.clone(), user.id, message_id)
         .await?;
 
     context
         .send(CreateReply::default().content(if deleted {
             tracing::info!(
-                "User {} removed message {} in guild {}, channel {}",
-                user_id,
-                message_id,
-                guild_channel.guild_id,
-                guild_channel.id,
+                %user,
+                username = %user.name,
+                guild = %guild_channel.guild_id,
+                channel = %guild_channel.id,
+                "User removed message {}",
+                message_id
             );
 
             "❌ Deleted message!"

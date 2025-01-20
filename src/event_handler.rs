@@ -1,6 +1,6 @@
 use poise::{
     serenity_prelude::{
-        self, ChannelId, CreateAllowedMentions, CreateMessage, FullEvent, Presence, PresenceUser,
+        self, ChannelId, CreateAllowedMentions, CreateMessage, FullEvent, Presence,
     },
     FrameworkContext,
 };
@@ -18,7 +18,7 @@ pub async fn event_handler(
         FullEvent::PresenceUpdate {
             new_data:
                 Presence {
-                    user: PresenceUser { id: user_id, .. },
+                    user,
                     guild_id: Some(guild_id),
                     activities,
                     ..
@@ -38,28 +38,29 @@ pub async fn event_handler(
                 )
                 .expect("no out of range");
 
-                if let Err(err) = state.record_activity(*user_id, activity).await {
+                if let Err(err) = state.record_activity(user.id, activity).await {
                     tracing::warn!(
-                        "Failed to record activity for user {} & guild {}: \"{}\" started @ {}: {}",
-                        user_id,
-                        guild_id,
-                        activity.name,
-                        activity_timestamp,
-                        err
-                    )
+                        user = %user.id,
+                        username = ?user.name,
+                        guild = %guild_id,
+                        activity = activity.name,
+                        activity_timestamp = %activity_timestamp,
+                        error = %err,
+                        "Failed to record activity update",
+                    );
                 } else {
-                    tracing::info!(
-                        "Recorded activity update for user {} & guild {}: \"{}\" started @ {}: {:?}",
-                        user_id,
-                        guild_id,
-                        activity.name,
-                        activity_timestamp,
-                        activity
+                    tracing::trace!(
+                        user = %user.id,
+                        username = ?user.name,
+                        guild = %guild_id,
+                        activity = activity.name,
+                        activity_timestamp = %activity_timestamp,
+                        "Recorded activity update",
                     );
                 }
 
                 let activity_watchers = state
-                    .get_watchers(*user_id, *guild_id, &activity.name)
+                    .get_watchers(user.id, *guild_id, &activity.name)
                     .await?;
                 for mut activity_watcher in
                     activity_watchers.into_iter().filter(|activity_watcher| {
@@ -74,9 +75,13 @@ pub async fn event_handler(
                     let now = Utc::now();
                     if activity_watcher.is_silenced(now) {
                         tracing::info!(
-                            "Watcher for activity '{}' @ {} would of triggered, but is silenced until {:?}",
-                            activity_watcher.activity_name,
-                            activity_watcher.last_triggered.expect("trigger"),
+                            user = %user.id,
+                            username = ?user.name,
+                            guild = %guild_id,
+                            activity = activity.name,
+                            activity_timestamp = %activity_timestamp,
+                            "Watcher {} for activity would of triggered, but is silenced until {:?}",
+                            activity_watcher.id,
                             activity_watcher.silenced_until
                         );
                     } else if let Some(activity_message) = state
@@ -97,7 +102,14 @@ pub async fn event_handler(
                             .await?;
 
                         tracing::info!(
-                            "Sent message @ {}: {}",
+                            user = %user.id,
+                            username = ?user.name,
+                            guild = %guild_id,
+                            activity = activity.name,
+                            activity_timestamp = %activity_timestamp,
+                            "Watcher {} sent message {} @ {}: {}!",
+                            activity_watcher.id,
+                            activity_message.id,
                             activity_watcher.last_triggered.expect("trigger"),
                             activity_message.message
                         );
