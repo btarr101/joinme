@@ -6,6 +6,8 @@ dotenv.config();
 const envSchema = z.object({
   DISCORD_TOKEN: z.string(),
   TABLE_NAME: z.string(),
+  BUCKET_NAME: z.string(),
+  BUCKET_REGION: z.literal("us-west-1"),
   NODE_ENV: z.enum(["production", "development"]).default("development"),
 });
 

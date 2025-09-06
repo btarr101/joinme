@@ -1,4 +1,4 @@
-import { recordedActivity, table } from "../lib/dynamo";
+import { queryRecordedActivities } from "../lib/dynamo";
 import { buildCommandSpec } from "./types";
 import {
   ActionRowBuilder,
@@ -8,7 +8,6 @@ import {
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
 } from "discord.js";
-import { QueryCommand } from "dynamodb-toolbox";
 
 const command = buildCommandSpec("messageContextMenu", {
   builder: new ContextMenuCommandBuilder().setName("Register Message").setType(ApplicationCommandType.Message),
@@ -16,18 +15,7 @@ const command = buildCommandSpec("messageContextMenu", {
     const userId = interaction.user.id;
     const messageId = interaction.targetMessage.id;
 
-    const activityOptionsQuery = await table
-      .build(QueryCommand)
-      .entities(recordedActivity)
-      .query({
-        partition: `USER#${userId}`,
-        range: {
-          beginsWith: "RECORDED_ACTIVITY",
-        },
-      })
-      .send();
-
-    const activityOptions = activityOptionsQuery.Items ?? [];
+    const activityOptions = await queryRecordedActivities({ userId });
 
     const select = new StringSelectMenuBuilder()
       .setCustomId("select-activity")

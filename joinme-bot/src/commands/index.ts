@@ -1,9 +1,10 @@
 import logger from "../lib/logger";
+import listMessages from "./list-messages";
 import ping from "./ping";
 import registerMessage from "./register-message";
-import { AnyCommandSpec, CommandBuilder, CommandHandler, CommandSpec, CommandType } from "./types";
+import { AnyCommandSpec, CommandBuilder, CommandHandler, CommandType } from "./types";
 
-const commandSpecs = [ping, registerMessage] satisfies AnyCommandSpec[];
+const commandSpecs = [ping, registerMessage, listMessages] satisfies AnyCommandSpec[];
 
 export type CommandHandlers = {
   [TCommandType in CommandType]?: Record<string, CommandHandler<TCommandType>>;

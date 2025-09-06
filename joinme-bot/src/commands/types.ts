@@ -3,7 +3,7 @@ import {
   CommandInteraction,
   ContextMenuCommandBuilder,
   MessageContextMenuCommandInteraction,
-  SlashCommandBuilder,
+  SharedSlashCommand,
 } from "discord.js";
 import pino from "pino";
 
@@ -14,7 +14,7 @@ type BaseCommandHandler<TInteraction extends CommandInteraction> = (
 
 type CommandSpecMap = {
   slash: {
-    builder: SlashCommandBuilder;
+    builder: SharedSlashCommand;
     interaction: ChatInputCommandInteraction;
   };
   messageContextMenu: {
