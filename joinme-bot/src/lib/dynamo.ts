@@ -4,6 +4,7 @@ import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import { BatchPutRequest, InputItem, list, map } from "dynamodb-toolbox";
 import { ValidItem } from "dynamodb-toolbox";
 import { DeleteItemCommand } from "dynamodb-toolbox";
+import { Condition } from "dynamodb-toolbox";
 import { GetItemCommand } from "dynamodb-toolbox";
 import { DeletePartitionCommand } from "dynamodb-toolbox";
 import { QueryCommand, string } from "dynamodb-toolbox";
@@ -29,9 +30,9 @@ export const activityMessageEntity = new Entity({
   table,
   schema: item({
     uuid: string(),
-    userId: string().key(),
     guildId: string().key(),
-    channelId: string(),
+    userId: string().key(),
+    channelId: string().key(),
     activityName: string().key(),
     content: string(),
     attachments: list(
@@ -41,21 +42,22 @@ export const activityMessageEntity = new Entity({
       }),
     ).default([]),
   }),
-  computeKey: ({ userId, activityName, guildId }) => ({
-    pk: `USER#${userId}`,
-    sk: `${activityMessageName}#${guildId}#${activityName}`,
+  computeKey: ({ guildId, userId, activityName, channelId }) => ({
+    pk: `GUILD#${guildId}`,
+    sk: `${activityMessageName}#${userId}#${activityName}#${channelId}`,
   }),
 });
 
 export type GetActivityMessageParams = ValidItem<typeof activityMessageEntity, { mode: "key" }>;
 
-export const getActivityMessage = async ({ userId, guildId, activityName }: GetActivityMessageParams) => {
+export const getActivityMessage = async ({ guildId, userId, activityName, channelId }: GetActivityMessageParams) => {
   const { Item } = await activityMessageEntity
     .build(GetItemCommand)
     .key({
       userId,
       guildId,
       activityName,
+      channelId,
     })
     .send();
 
@@ -64,13 +66,19 @@ export const getActivityMessage = async ({ userId, guildId, activityName }: GetA
 
 export type DeleteActivityMessageParams = ValidItem<typeof activityMessageEntity, { mode: "key" }>;
 
-export const deleteActivityMessage = async ({ userId, guildId, activityName }: DeleteActivityMessageParams) => {
+export const deleteActivityMessage = async ({
+  guildId,
+  userId,
+  activityName,
+  channelId,
+}: DeleteActivityMessageParams) => {
   await activityMessageEntity
     .build(DeleteItemCommand)
     .key({
       userId,
       guildId,
       activityName,
+      channelId,
     })
     .send();
 };
@@ -78,20 +86,51 @@ export const deleteActivityMessage = async ({ userId, guildId, activityName }: D
 export type QueryActivityMessagesParams = {
   userId: string;
   guildId: string;
+  channelId?: string;
+  activityName?: string;
 };
 
-export const queryActivityMessages = async ({ userId, guildId }: QueryActivityMessagesParams) => {
-  const beginsWith = `${activityMessageName}#${guildId}`;
+export const queryActivityMessages = async ({
+  guildId,
+  userId,
+  channelId,
+  activityName,
+}: QueryActivityMessagesParams) => {
+  let beginsWith = `${activityMessageName}#${userId}`;
+  if (activityName) {
+    beginsWith += `#${activityName}`;
+  }
+
+  let filter: Condition<typeof activityMessageEntity> | undefined;
+  if (channelId) {
+    if (activityName) {
+      beginsWith += `#${channelId}`;
+    } else {
+      filter = {
+        attr: "channelId",
+        eq: channelId,
+      };
+    }
+  }
 
   const query = await table
     .build(QueryCommand)
     .entities(activityMessageEntity)
     .query({
-      partition: `USER#${userId}`,
+      partition: `GUILD#${guildId}`,
       range: {
         beginsWith,
       },
     })
+    .options(
+      filter
+        ? {
+            filters: {
+              ACTIVITY_MESSAGE: filter,
+            },
+          }
+        : {},
+    )
     .send();
 
   return query.Items ?? [];
@@ -100,11 +139,17 @@ export const queryActivityMessages = async ({ userId, guildId }: QueryActivityMe
 export type DeleteActivityMessagesParams = {
   userId: string;
   guildId: string;
+  channelId?: string;
   activityName?: string;
 };
 
-export const deleteActivityMessages = async ({ userId, guildId, activityName }: DeleteActivityMessagesParams) => {
-  let beginsWith = `${activityMessageName}#${guildId}`;
+export const deleteActivityMessages = async ({
+  guildId,
+  userId,
+  channelId,
+  activityName,
+}: DeleteActivityMessagesParams) => {
+  let beginsWith = `${activityMessageName}#${userId}`;
   if (activityName) {
     beginsWith += `#${activityName}`;
   }
@@ -113,11 +158,23 @@ export const deleteActivityMessages = async ({ userId, guildId, activityName }: 
     .build(DeletePartitionCommand)
     .entities(activityMessageEntity)
     .query({
-      partition: `USER#${userId}`,
+      partition: `GUILD#${guildId}`,
       range: {
         beginsWith,
       },
     })
+    .options(
+      channelId
+        ? {
+            filters: {
+              ACTIVITY_MESSAGE: {
+                attr: "channelId",
+                eq: channelId,
+              },
+            },
+          }
+        : {},
+    )
     .send();
 };
 

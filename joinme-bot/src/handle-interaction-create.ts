@@ -187,12 +187,13 @@ const handleButton = async (interaction: ButtonInteraction, logger: pino.Logger)
 };
 
 const handlePreview = async (interaction: ButtonInteraction, actionParams: string[], logger: pino.Logger) => {
-  const [userId, guildId, activityName] = actionParams;
-  assert(userId);
+  const [guildId, userId, activityName, channelId] = actionParams;
   assert(guildId);
+  assert(userId);
   assert(activityName);
+  assert(channelId);
 
-  const message = await getActivityMessage({ userId, guildId, activityName });
+  const message = await getActivityMessage({ guildId, userId, activityName, channelId });
   assert(message);
 
   logger.info({ message }, "Sending message");
@@ -210,14 +211,15 @@ const handlePreview = async (interaction: ButtonInteraction, actionParams: strin
 };
 
 const handleDelete = async (interaction: ButtonInteraction, actionParams: string[], logger: pino.Logger) => {
-  const [userId, guildId, activityName] = actionParams;
-  assert(userId);
+  const [guildId, userId, activityName, channelId] = actionParams;
   assert(guildId);
+  assert(userId);
   assert(activityName);
+  assert(channelId);
 
   logger.info({ userId, guildId, activityName }, "Deleting activity message");
 
-  await deleteActivityMessage({ userId, guildId, activityName });
+  await deleteActivityMessage({ guildId, userId, activityName, channelId });
 
   logger.info("Deleted activity message");
 
@@ -228,7 +230,7 @@ const handleDelete = async (interaction: ButtonInteraction, actionParams: string
         .addActionRowComponents((actionRow) =>
           actionRow.addComponents(
             new ButtonBuilder()
-              .setCustomId(`DELETED#${userId}#${guildId}#${activityName}`)
+              .setCustomId(`DELETED#${guildId}#${userId}#${activityName}#${channelId}`)
               .setLabel("Deleted")
               .setDisabled()
               .setStyle(ButtonStyle.Danger),

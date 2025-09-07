@@ -2,11 +2,9 @@ import { queryActivityMessages } from "../lib/dynamo";
 import { buildCommandSpec } from "./types";
 import assert from "assert";
 import {
-  AttachmentBuilder,
   ButtonBuilder,
   ButtonStyle,
   ContainerBuilder,
-  FileBuilder,
   MessageFlags,
   SeparatorSpacingSize,
   SlashCommandBuilder,
@@ -23,10 +21,12 @@ const command = buildCommandSpec("slash", {
 
     const userId = interaction.user.id;
     const guildId = interaction.guildId;
+    const channelId = interaction.channelId;
 
     const activityMessages = await queryActivityMessages({
       userId,
       guildId,
+      channelId,
     });
 
     if (!activityMessages.length) {
@@ -50,11 +50,11 @@ const command = buildCommandSpec("slash", {
           .addActionRowComponents((actionRow) =>
             actionRow.addComponents(
               new ButtonBuilder()
-                .setCustomId(`PREVIEW#${userId}#${guildId}#${activityName}`)
+                .setCustomId(`PREVIEW#${guildId}#${userId}#${activityName}#${channelId}`)
                 .setLabel("Preview")
                 .setStyle(ButtonStyle.Primary),
               new ButtonBuilder()
-                .setCustomId(`DELETE#${userId}#${guildId}#${activityName}`)
+                .setCustomId(`DELETE#${guildId}#${userId}#${activityName}#${channelId}`)
                 .setLabel("Delete")
                 .setStyle(ButtonStyle.Danger),
             ),
