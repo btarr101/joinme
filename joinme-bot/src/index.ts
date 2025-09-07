@@ -1,3 +1,5 @@
+import "source-map-support/register";
+
 import { handleClientReady } from "./handle-client-ready";
 import { handleInteraction } from "./handle-interaction-create";
 import { handlePresenceUpdate } from "./handle-presence-update";

@@ -11,12 +11,9 @@ dotenv.config({
   path: [relativeEnv, parentEnv],
 });
 
-export const envSchema = z.object({
+const envSchema = z.object({
   DISCORD_TOKEN: z.string(),
-  TABLE_NAME: z.string(),
-  BUCKET_NAME: z.string(),
-  AWS_REGION: z.string(),
-  NODE_ENV: z.enum(["production", "development"]).default("development"),
+  ENVIRONMENT: z.enum(["production", "staging"]).default("staging"),
 });
 
 const result = envSchema.safeParse(process.env);
@@ -25,7 +22,5 @@ if (!result.success) {
   console.error("⚠️ Environment issues!", result.error.issues);
   process.exit(1);
 }
-
-console.info({ env: result.data }, "Loaded environment");
 
 export default result.data;

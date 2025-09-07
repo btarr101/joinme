@@ -6,7 +6,6 @@
     "outDir": "./dist",
     "removeComments": true,
     "resolveJsonModule": true,
-    "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
     "noImplicitAny": true,
@@ -18,7 +17,12 @@
     "strictNullChecks": true,
     "skipLibCheck": true,
     "noUncheckedIndexedAccess": true,
-    "inlineSourceMap": true,
-    "inlineSources": true,
+    "sourceMap": true,
   },
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }

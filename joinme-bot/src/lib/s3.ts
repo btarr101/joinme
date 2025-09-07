@@ -24,5 +24,5 @@ export const uploadAttachment = async ({ messageUUID, name, body }: UploadAttach
 
   await upload.done();
 
-  return `https://${env.BUCKET_NAME}.s3.${env.BUCKET_REGION}.amazonaws.com/${key}`;
+  return `https://${env.BUCKET_NAME}.s3.${env.AWS_REGION}.amazonaws.com/${key}`;
 };

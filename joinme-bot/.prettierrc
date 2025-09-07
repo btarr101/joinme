@@ -2,6 +2,10 @@
 	"importOrderSeparation": true,
 	"importOrderSortSpecifiers": true,
 	"printWidth": 120,
+	"importOrder": [
+		"source-map-support/register",
+		"^.*"
+	],
 	"plugins": [
 		"@trivago/prettier-plugin-sort-imports"
 	]
