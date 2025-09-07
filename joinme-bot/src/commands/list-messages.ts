@@ -8,84 +8,71 @@ import {
   ContainerBuilder,
   FileBuilder,
   MessageFlags,
-  SectionBuilder,
-  SeparatorBuilder,
   SeparatorSpacingSize,
   SlashCommandBuilder,
-  TextDisplayBuilder,
 } from "discord.js";
 import _ from "lodash";
 
 const command = buildCommandSpec("slash", {
   builder: new SlashCommandBuilder()
     .setName("list-messages")
-    .setDescription("List messages you have registered to send here when you start a specific activity")
-    .addStringOption((option) =>
-      option.setName("activity").setDescription("Activity to filter by").setRequired(false).setAutocomplete(true),
-    ),
+    .setDescription("List messages you have registered to send here when you start a specific activity"),
   handler: async (interaction) => {
     assert(interaction.guildId);
     assert(interaction.channel?.isSendable());
 
-    const activityName = interaction.options.getString("activity", false) ?? undefined;
+    const userId = interaction.user.id;
+    const guildId = interaction.guildId;
 
     const activityMessages = await queryActivityMessages({
-      userId: interaction.user.id,
-      guildId: interaction.guildId,
-      activityName,
+      userId,
+      guildId,
     });
 
-    const activityMessageByActivityName = Object.entries(
-      _.groupBy(activityMessages, ({ activityName }) => activityName),
-    ).toSorted();
+    if (!activityMessages.length) {
+      await interaction.reply({
+        content: "❌ No messages registerd in this channel.",
+        flags: MessageFlags.Ephemeral,
+      });
 
-    const files = activityMessageByActivityName.flatMap(([, messages]) =>
-      messages.flatMap(({ uuid, attachments }) =>
-        attachments.map(({ name, url }) => new AttachmentBuilder(url).setName(`${uuid}-${name}`)),
-      ),
-    );
+      return;
+    }
 
-    const components = activityMessageByActivityName.flatMap(([activityName, messages], index) => [
-      new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Large).setDivider(false),
-      new SectionBuilder()
-        .addTextDisplayComponents((textDisplay) => textDisplay.setContent(`## ${activityName}`))
-        .setButtonAccessory(
-          new ButtonBuilder().setCustomId("foo2").setLabel("Delete all").setStyle(ButtonStyle.Danger),
-        ),
-      new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(false),
-      ...[
-        ...messages.map(({ uuid, created, content, attachments }) =>
-          new ContainerBuilder()
-            .addSectionComponents(
-              new SectionBuilder()
-                .addTextDisplayComponents(
-                  (textDisplay) => textDisplay.setContent(`\`${uuid}\``),
-                  (textDisplay) =>
-                    textDisplay.setContent(`-# Registered <t:${Math.floor(new Date(created).getTime() / 1000)}:f>`),
-                )
-                .setButtonAccessory(
-                  new ButtonBuilder().setCustomId("foo").setLabel("Delete").setStyle(ButtonStyle.Danger),
-                ),
-            )
-            .addSeparatorComponents((seperator) => seperator.setDivider(true).setSpacing(SeparatorSpacingSize.Large))
-            .addTextDisplayComponents((textDisplay) => textDisplay.setContent(content))
-            .addFileComponents(
-              ...attachments.map(({ name }) => new FileBuilder().setURL(`attachment://${uuid}-${name}`)),
+    const followUpMessages = activityMessages.map(({ activityName, modified }) => ({
+      components: [
+        new ContainerBuilder()
+          .addTextDisplayComponents(
+            (textDisplay) => textDisplay.setContent(`## ${activityName}`),
+            (textDisplay) =>
+              textDisplay.setContent(`-# Registered <t:${Math.floor(new Date(modified).getTime() / 1000)}:f>`),
+          )
+          .addSeparatorComponents((seperator) => seperator.setDivider(true).setSpacing(SeparatorSpacingSize.Large))
+          .addActionRowComponents((actionRow) =>
+            actionRow.addComponents(
+              new ButtonBuilder()
+                .setCustomId(`PREVIEW#${userId}#${guildId}#${activityName}`)
+                .setLabel("Preview")
+                .setStyle(ButtonStyle.Primary),
+              new ButtonBuilder()
+                .setCustomId(`DELETE#${userId}#${guildId}#${activityName}`)
+                .setLabel("Delete")
+                .setStyle(ButtonStyle.Danger),
             ),
-        ),
-        ...(index < activityMessageByActivityName.length - 1
-          ? [new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large)]
-          : []),
+          ),
       ],
-    ]);
-
-    console.log(components);
+      flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+    }));
 
     await interaction.reply({
-      components,
-      files,
-      flags: MessageFlags.IsComponentsV2,
+      content: "📝 Listing messages...",
+      flags: MessageFlags.Ephemeral,
     });
+
+    for (const followupMessage of followUpMessages) {
+      await interaction.channel.sendTyping();
+
+      await interaction.followUp(followupMessage);
+    }
   },
 });
 

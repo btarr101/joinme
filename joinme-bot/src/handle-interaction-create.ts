@@ -1,19 +1,26 @@
 import { commandHandlers } from "./commands";
 import { CommandInteractionByType, CommandType } from "./commands/types";
-import { activityMessageEntity, queryActivityMessages } from "./lib/dynamo";
+import { activityMessageEntity, deleteActivityMessage, getActivityMessage, queryActivityMessages } from "./lib/dynamo";
 import logger from "./lib/logger";
 import { uploadAttachment } from "./lib/s3";
-import { extractInteractionCommand } from "./util/get-interaction-command-type";
+import { extractInteractionCommand } from "./util/extract-interaction-command";
 import assert from "assert";
 import { randomUUID } from "crypto";
 import {
   ApplicationCommandOptionChoiceData,
   Attachment,
+  AutocompleteFocusedOption,
   AutocompleteInteraction,
+  ButtonBuilder,
+  ButtonInteraction,
+  ButtonStyle,
+  ContainerBuilder,
   Interaction,
+  MessageFlags,
   StringSelectMenuInteraction,
 } from "discord.js";
 import { PutItemCommand } from "dynamodb-toolbox";
+import _ from "lodash";
 import pino from "pino";
 import { Readable } from "stream";
 
@@ -29,6 +36,9 @@ export const handleInteraction = async (interaction: Interaction) => {
     if (interaction.isAutocomplete()) return await handleAutocomplete(interaction, interactionLogger);
 
     const { ty, interaction: commandInteraction } = extractInteractionCommand(interaction);
+
+    if (interaction.isButton()) return await handleButton(interaction, interactionLogger);
+
     if (ty) return await handleCommandInteraction(ty, commandInteraction, interactionLogger);
   } catch (error) {
     interactionLogger.error(error, "Error handling interaction");
@@ -68,8 +78,6 @@ const handleStringSelectMenuInteraction = async (interaction: StringSelectMenuIn
       return;
     }
 
-    const messageUUID = randomUUID();
-
     const discordAttachments: Attachment[] = [];
     for (const attachment of message.attachments.values()) {
       discordAttachments.push(attachment);
@@ -78,6 +86,8 @@ const handleStringSelectMenuInteraction = async (interaction: StringSelectMenuIn
     if (discordAttachments.length) {
       logger.info({ discordAttachments }, "Uploading attachments...");
     }
+
+    const messageUUID = randomUUID();
 
     const attachments = await Promise.all(
       discordAttachments.map(async ({ name, url }) => {
@@ -118,18 +128,18 @@ const handleStringSelectMenuInteraction = async (interaction: StringSelectMenuIn
     logger.info("Saved message!");
 
     await interaction.update({
-      content: `The message will be sent in this channel whenever you start \`${activityName}\`.`,
+      content: `✅ The message will be sent in this channel whenever you start \`${activityName}\`.`,
       components: [],
     });
   }
 };
 
 const handleAutocomplete = async (interaction: AutocompleteInteraction, logger: pino.Logger) => {
-  const focusedValue = interaction.options.getFocused();
+  const focused = interaction.options.getFocused(true);
 
   logger.info("Getting autocomplete suggestions...");
 
-  let suggestions = await getAutocompleteSuggestions(interaction, focusedValue);
+  let suggestions = await getAutocompleteSuggestions(interaction, focused);
 
   logger.info(suggestions, "Got autocomplete suggestions");
 
@@ -138,17 +148,92 @@ const handleAutocomplete = async (interaction: AutocompleteInteraction, logger: 
 
 const getAutocompleteSuggestions = async (
   interaction: AutocompleteInteraction,
-  focusedValue: string,
+  focused: AutocompleteFocusedOption,
 ): Promise<ApplicationCommandOptionChoiceData<string | number>[]> => {
-  if (interaction.commandName === "list-messages" && interaction.guildId) {
-    return (await queryActivityMessages({ userId: interaction.user.id, guildId: interaction.guildId }))
-      .filter(
-        ({ activityName, channelId }) =>
-          channelId === interaction.channelId && // ensure this lists messages in the channel
-          activityName.startsWith(focusedValue), // ensure the name of the activity starts with what's in the input,
-      )
-      .map(({ activityName }) => ({ name: activityName, value: activityName }));
+  if (focused.name === "activity") {
+    assert(interaction.guildId);
+
+    const lowerCaseFocusedValue = focused.value.toLocaleLowerCase();
+
+    const uniqueActivities = _.uniq(
+      (await queryActivityMessages({ userId: interaction.user.id, guildId: interaction.guildId }))
+        .filter(
+          ({ channelId }) => channelId === interaction.channelId, // ensure this lists messages in the channel
+        )
+        .map(({ activityName }) => activityName),
+    )
+      .filter((activityName) => activityName.toLocaleLowerCase().startsWith(lowerCaseFocusedValue))
+      .toSorted();
+
+    return uniqueActivities.map((activityName) => ({ name: activityName, value: activityName }));
   }
 
   return [];
+};
+
+const handleButton = async (interaction: ButtonInteraction, logger: pino.Logger) => {
+  const [buttonAction, ...actionParams] = interaction.customId.split("#");
+  assert(buttonAction);
+
+  logger.info({ buttonAction, actionParams }, "Handling button interaction");
+
+  switch (buttonAction) {
+    case "PREVIEW":
+      return await handlePreview(interaction, actionParams, logger);
+
+    case "DELETE":
+      return await handleDelete(interaction, actionParams, logger);
+  }
+};
+
+const handlePreview = async (interaction: ButtonInteraction, actionParams: string[], logger: pino.Logger) => {
+  const [userId, guildId, activityName] = actionParams;
+  assert(userId);
+  assert(guildId);
+  assert(activityName);
+
+  const message = await getActivityMessage({ userId, guildId, activityName });
+  assert(message);
+
+  logger.info({ message }, "Sending message");
+
+  const files = message.attachments.length
+    ? message.attachments.map(({ url, name }) => ({
+        attachment: url,
+        name,
+      }))
+    : undefined;
+
+  await interaction.reply({ content: message.content, files, flags: MessageFlags.Ephemeral });
+
+  logger.info("Sent message");
+};
+
+const handleDelete = async (interaction: ButtonInteraction, actionParams: string[], logger: pino.Logger) => {
+  const [userId, guildId, activityName] = actionParams;
+  assert(userId);
+  assert(guildId);
+  assert(activityName);
+
+  logger.info({ userId, guildId, activityName }, "Deleting activity message");
+
+  await deleteActivityMessage({ userId, guildId, activityName });
+
+  logger.info("Deleted activity message");
+
+  await interaction.update({
+    components: [
+      new ContainerBuilder()
+        .addTextDisplayComponents((textDisplay) => textDisplay.setContent(`## ${activityName}`))
+        .addActionRowComponents((actionRow) =>
+          actionRow.addComponents(
+            new ButtonBuilder()
+              .setCustomId(`DELETED#${userId}#${guildId}#${activityName}`)
+              .setLabel("Deleted")
+              .setDisabled()
+              .setStyle(ButtonStyle.Danger),
+          ),
+        ),
+    ],
+  });
 };
