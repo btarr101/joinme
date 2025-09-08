@@ -9,6 +9,7 @@ import env from "./env";
 import { envSchema as botEnvSchema } from "joinme-bot/src/lib/env";
 import { z } from "zod";
 import { rootDirectory } from "./util";
+import { Platform } from "aws-cdk-lib/aws-ecr-assets";
 
 export class JoinmeStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -60,6 +61,7 @@ export class JoinmeStack extends cdk.Stack {
     taskDefinition.addContainer("container", {
       image: ecs.ContainerImage.fromAsset(rootDirectory, {
         exclude: ["cdk", "**/node_modules", ".git", ".gitignore"],
+        platform: Platform.LINUX_ARM64,
       }),
       logging: ecs.LogDrivers.awsLogs({ streamPrefix: "joinme-bot" }),
       environment: {

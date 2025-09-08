@@ -4,7 +4,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-22.04-arm64
+    runs-on: ubuntu-latest
     environment: production
     steps:
       - uses: jakubcieslik99/secrets-vars-to-env-file-action@main
@@ -13,11 +13,16 @@ jobs:
           secrets: ${{ toJSON(secrets) }}
 
       - uses: actions/checkout@v5
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: "pnpm"
+
       - run: npm install -g aws-cdk
       - run: pnpm install
       - run: cd cdk && cdk deploy
