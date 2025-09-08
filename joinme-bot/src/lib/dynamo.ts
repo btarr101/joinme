@@ -1,9 +1,10 @@
 import env from "./env";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
-import { BatchPutRequest, InputItem, list, map } from "dynamodb-toolbox";
+import { BatchPutRequest, InputItem, list, map, number } from "dynamodb-toolbox";
 import { ValidItem } from "dynamodb-toolbox";
 import { DeleteItemCommand } from "dynamodb-toolbox";
+import { PutItemCommand } from "dynamodb-toolbox";
 import { Condition } from "dynamodb-toolbox";
 import { GetItemCommand } from "dynamodb-toolbox";
 import { DeletePartitionCommand } from "dynamodb-toolbox";
@@ -219,3 +220,32 @@ export const writeRecordedActivites = async (items: InputItem<typeof recordedAct
       .requests(...items.map((item) => recordedActivityEntity.build(BatchPutRequest).item(item))),
   );
 };
+
+const interactionTokenName = "INTERACTION_TOKEN";
+
+export const interactionTokenEntity = new Entity({
+  name: interactionTokenName,
+  table,
+  schema: item({
+    uuid: string().key(),
+    token: string(),
+    expiresAt: number(),
+  }),
+  computeKey: ({ uuid }) => ({
+    pk: `${interactionTokenName}#${uuid}`,
+    sk: `${interactionTokenName}`,
+  }),
+});
+
+export const writeInteractionToken = (item: InputItem<typeof interactionTokenEntity>) =>
+  interactionTokenEntity.build(PutItemCommand).item(item).send();
+
+export const getInteractionToken = async (uuid: string) =>
+  (
+    await interactionTokenEntity
+      .build(GetItemCommand)
+      .key({
+        uuid,
+      })
+      .send()
+  ).Item;

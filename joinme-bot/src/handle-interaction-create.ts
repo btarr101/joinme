@@ -1,23 +1,40 @@
 import { commandHandlers } from "./commands";
 import { CommandInteractionByType, CommandType } from "./commands/types";
-import { activityMessageEntity, deleteActivityMessage, getActivityMessage, queryActivityMessages } from "./lib/dynamo";
+import {
+  activityMessageEntity,
+  deleteActivityMessage,
+  getActivityMessage,
+  getInteractionToken,
+  queryActivityMessages,
+} from "./lib/dynamo";
 import logger from "./lib/logger";
+import rest from "./lib/rest";
 import { uploadAttachment } from "./lib/s3";
 import { extractInteractionCommand } from "./util/extract-interaction-command";
+import { findComponents } from "./util/find-component";
 import assert from "assert";
 import { randomUUID } from "crypto";
 import {
+  ActionRowBuilder,
   ApplicationCommandOptionChoiceData,
   Attachment,
   AutocompleteFocusedOption,
   AutocompleteInteraction,
   ButtonBuilder,
+  ButtonComponent,
   ButtonInteraction,
   ButtonStyle,
+  ComponentType,
   ContainerBuilder,
   Interaction,
   MessageFlags,
+  ModalBuilder,
+  ModalSubmitInteraction,
+  Routes,
   StringSelectMenuInteraction,
+  TextDisplayBuilder,
+  TextInputBuilder,
+  TextInputStyle,
 } from "discord.js";
 import { PutItemCommand } from "dynamodb-toolbox";
 import _ from "lodash";
@@ -32,6 +49,8 @@ export const handleInteraction = async (interaction: Interaction) => {
   try {
     if (interaction.isStringSelectMenu())
       return await handleStringSelectMenuInteraction(interaction, interactionLogger);
+
+    if (interaction.isModalSubmit()) return await handleModalSubmit(interaction, interactionLogger);
 
     if (interaction.isAutocomplete()) return await handleAutocomplete(interaction, interactionLogger);
 
@@ -73,10 +92,7 @@ const handleStringSelectMenuInteraction = async (interaction: StringSelectMenuIn
     };
 
     const message = await interaction.channel?.messages.fetch(messageId);
-    if (!message) {
-      logger.error({ messageId }, "Could not find original message");
-      return;
-    }
+    assert(message);
 
     const discordAttachments: Attachment[] = [];
     for (const attachment of message.attachments.values()) {
@@ -128,9 +144,95 @@ const handleStringSelectMenuInteraction = async (interaction: StringSelectMenuIn
     logger.info("Saved message!");
 
     await interaction.update({
-      content: `✅ The message will be sent in this channel whenever you start \`${activityName}\`.`,
-      components: [],
+      components: [
+        new TextDisplayBuilder().setContent(
+          `✅ The message will be sent in this channel whenever you start \`${activityName}\`.`,
+        ),
+      ],
     });
+
+    return;
+  }
+};
+
+const handleModalSubmit = async (interaction: ModalSubmitInteraction, logger: pino.Logger) => {
+  if (interaction.customId.startsWith("enter-raw-activity-modal")) {
+    assert(interaction.guildId);
+    assert(interaction.channelId);
+
+    const [_, messageId, interactionTokenUUID] = interaction.customId.split("#");
+    assert(messageId);
+    assert(interactionTokenUUID);
+
+    const activityName = interaction.fields.getTextInputValue("raw-activity-name");
+    assert(activityName);
+
+    const message = await interaction.channel?.messages.fetch(messageId);
+    assert(message);
+
+    const discordAttachments: Attachment[] = [];
+    for (const attachment of message.attachments.values()) {
+      discordAttachments.push(attachment);
+    }
+
+    if (discordAttachments.length) {
+      logger.info({ discordAttachments }, "Uploading attachments...");
+    }
+
+    const messageUUID = randomUUID();
+
+    const attachments = await Promise.all(
+      discordAttachments.map(async ({ name, url }) => {
+        const response = await fetch(url);
+
+        if (!response.ok) {
+          throw new Error(`${response.statusText}: ${response.status}`);
+        }
+
+        if (response.body === null) {
+          throw new Error("No response body");
+        }
+
+        const attachmentUrl = await uploadAttachment({ messageUUID, name, body: Readable.from(response.body) });
+
+        return {
+          name,
+          url: attachmentUrl,
+        };
+      }),
+    );
+
+    logger.info("Creating message in dynamo...");
+
+    await activityMessageEntity
+      .build(PutItemCommand)
+      .item({
+        uuid: messageUUID,
+        userId: interaction.user.id,
+        guildId: interaction.guildId,
+        channelId: interaction.channelId,
+        activityName,
+        content: message.content,
+        attachments,
+      })
+      .send();
+
+    const interactionToken = await getInteractionToken(interactionTokenUUID);
+    if (interactionToken?.token) {
+      await rest.patch(Routes.webhookMessage(interaction.applicationId, interactionToken.token), {
+        body: {
+          components: [
+            new TextDisplayBuilder()
+              .setContent(`✅ The message will be sent in this channel whenever you start \`${activityName}\`.`)
+              .toJSON(),
+          ],
+        },
+      });
+    }
+
+    await interaction.deferUpdate();
+
+    return;
   }
 };
 
@@ -183,6 +285,9 @@ const handleButton = async (interaction: ButtonInteraction, logger: pino.Logger)
 
     case "DELETE":
       return await handleDelete(interaction, actionParams, logger);
+
+    case "OPENMODAL":
+      return await handleOpenModal(interaction, actionParams);
   }
 };
 
@@ -223,19 +328,61 @@ const handleDelete = async (interaction: ButtonInteraction, actionParams: string
 
   logger.info("Deleted activity message");
 
+  // Peak coding here
+  //
+  // This should be better, but it just manipulates the original component.
+  for (const topLevelComponent of interaction.message.components) {
+    if ("components" in topLevelComponent) {
+      topLevelComponent.components.forEach((secondaryComponent, index) => {
+        if (secondaryComponent.type === ComponentType.TextDisplay) {
+          if (secondaryComponent.content.startsWith("## ")) {
+            assert(secondaryComponent.id);
+
+            topLevelComponent.components[index] = new TextDisplayBuilder()
+              .setId(secondaryComponent.id)
+              .setContent(`## ~~${activityName}~~`) as unknown as any;
+          }
+        } else if (secondaryComponent.type === ComponentType.ActionRow) {
+          secondaryComponent.components.forEach((component, index) => {
+            if (component.type === ComponentType.Button) {
+              if (component.customId?.startsWith("DELETE")) {
+                secondaryComponent.components[index] = ButtonBuilder.from(component)
+                  .setDisabled(true)
+                  .setLabel("Deleted") as unknown as any;
+              } else if (component.customId?.startsWith("PREVIEW")) {
+                secondaryComponent.components[index] = ButtonBuilder.from(component).setDisabled(
+                  true,
+                ) as unknown as any;
+              }
+            }
+          });
+        }
+      });
+    }
+  }
+
   await interaction.update({
-    components: [
-      new ContainerBuilder()
-        .addTextDisplayComponents((textDisplay) => textDisplay.setContent(`## ${activityName}`))
-        .addActionRowComponents((actionRow) =>
-          actionRow.addComponents(
-            new ButtonBuilder()
-              .setCustomId(`DELETED#${guildId}#${userId}#${activityName}#${channelId}`)
-              .setLabel("Deleted")
-              .setDisabled()
-              .setStyle(ButtonStyle.Danger),
-          ),
-        ),
-    ],
+    components: interaction.message.components,
   });
+};
+
+const handleOpenModal = async (interaction: ButtonInteraction, actionParams: string[]) => {
+  const [messageId, interactionTokenUUID] = actionParams;
+  assert(messageId);
+  assert(interactionTokenUUID);
+
+  const textInput = new TextInputBuilder()
+    .setCustomId("raw-activity-name")
+    .setLabel("Raw activity name")
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true);
+
+  const row = new ActionRowBuilder<TextInputBuilder>().addComponents(textInput);
+
+  const modal = new ModalBuilder()
+    .setCustomId(`enter-raw-activity-modal#${messageId}#${interactionTokenUUID}`)
+    .setTitle("Register Activity Message (by raw name)")
+    .addComponents(row);
+
+  await interaction.showModal(modal);
 };

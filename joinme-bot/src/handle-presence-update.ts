@@ -1,4 +1,4 @@
-import { getActivityMessage, writeRecordedActivites } from "./lib/dynamo";
+import { queryActivityMessages, writeRecordedActivites } from "./lib/dynamo";
 import logger from "./lib/logger";
 import assert from "assert";
 import { Presence } from "discord.js";
@@ -27,15 +27,13 @@ export const handlePresenceUpdate = async (oldPresence: Presence | null, newPres
 
     const messagesToSend = (
       await Promise.all(
-        newActivities.map(async ({ name }) => {
-          const message = await getActivityMessage({
+        newActivities.map(({ name }) =>
+          queryActivityMessages({
             userId,
             guildId: guild.id,
             activityName: name,
-          });
-
-          return message ? [message] : [];
-        }),
+          }),
+        ),
       )
     ).flat();
 

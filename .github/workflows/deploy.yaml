@@ -1,0 +1,23 @@
+name: Deploy
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-22.04-arm64
+    environment: production
+    steps:
+      - uses: jakubcieslik99/secrets-vars-to-env-file-action@main
+        with:
+          vars: ${{ toJson(vars) }}
+          secrets: ${{ toJSON(secrets) }}
+
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "pnpm"
+      - run: npm install -g aws-cdk
+      - run: pnpm install
+      - run: cd cdk && cdk deploy

@@ -1,10 +1,8 @@
 import { commandBuilders } from "./commands";
-import env from "./lib/env";
 import logger from "./lib/logger";
+import rest from "./lib/rest";
 import runtimeConfig from "./runtime-config";
-import { Client, REST, Routes } from "discord.js";
-
-const rest = new REST().setToken(env.DISCORD_TOKEN);
+import { Client, Routes } from "discord.js";
 
 export const handleClientReady = async (readyClient: Client<true>) => {
   logger.info(`Ready! Logged in as ${readyClient.user.tag}`);

@@ -13,7 +13,7 @@ dotenv.config({
 
 const envSchema = z.object({
   DISCORD_TOKEN: z.string(),
-  ENVIRONMENT: z.enum(["production", "staging"]).default("staging"),
+  ENVIRONMENT: z.enum(["production", "development"]).default("development"),
 });
 
 const result = envSchema.safeParse(process.env);
