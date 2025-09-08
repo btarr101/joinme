@@ -11,7 +11,6 @@ import logger from "./lib/logger";
 import rest from "./lib/rest";
 import { uploadAttachment } from "./lib/s3";
 import { extractInteractionCommand } from "./util/extract-interaction-command";
-import { findComponents } from "./util/find-component";
 import assert from "assert";
 import { randomUUID } from "crypto";
 import {
@@ -21,11 +20,8 @@ import {
   AutocompleteFocusedOption,
   AutocompleteInteraction,
   ButtonBuilder,
-  ButtonComponent,
   ButtonInteraction,
-  ButtonStyle,
   ComponentType,
-  ContainerBuilder,
   Interaction,
   MessageFlags,
   ModalBuilder,

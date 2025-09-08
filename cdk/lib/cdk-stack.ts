@@ -24,6 +24,7 @@ export class JoinmeStack extends cdk.Stack {
         name: "sk",
         type: dynamodb.AttributeType.STRING,
       },
+      timeToLiveAttribute: "expiresAt",
     });
 
     const bucket = new s3.Bucket(this, "bucket", {
