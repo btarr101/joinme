@@ -25,4 +25,4 @@ jobs:
 
       - run: npm install -g aws-cdk
       - run: pnpm install
-      - run: cd cdk && cdk deploy
+      - run: cd cdk && cdk deploy --require-approval never
