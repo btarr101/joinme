@@ -29,12 +29,17 @@ const command = buildCommandSpec("messageContextMenu", {
 
     const activityOptions = await queryRecordedActivities({ userId });
     if (activityOptions.length) {
+      // TODO: Pagination instead if there are more than 25 activites?
+      const mostRecentActivityOptions = activityOptions
+        .toSorted((a, b) => Date.parse(b.modified) - Date.parse(a.modified))
+        .slice(0, 25);
+
       const select = new StringSelectMenuBuilder()
         .setCustomId("select-activity")
         .setPlaceholder("Select an activity")
         .setMaxValues(1)
         .addOptions(
-          activityOptions.map(({ activityName }) =>
+          mostRecentActivityOptions.map(({ activityName }) =>
             new StringSelectMenuOptionBuilder().setLabel(activityName).setValue(
               JSON.stringify({
                 messageId,
